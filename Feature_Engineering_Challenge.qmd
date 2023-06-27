@@ -1,0 +1,64 @@
+---
+title: "Feature Engineering Challenge"
+subtitle: "Extract and transform features from json format file"
+author: "Olumide Oyalola"
+format: 
+  html:
+    theme: journal
+    code-copy: true
+    code-fold: show
+    toc: true
+    toc-depth: 3
+    fig-width: 8
+    fig-height: 5
+    toc-title: "Contents"
+    self-contained: true
+editor: visual
+---
+
+# Preamble
+
+## Load Packages
+
+```{r}
+#| warning: false
+#| message: false
+#| label: load-packages
+
+# Install pacman package if needed
+if(!require("pacman")) install.packages("pacman")
+
+# load the required packages
+
+pacman::p_load(
+  httr,
+  jsonlite,
+  tidyjson,
+  tidyverse,
+  lubridate,
+  anytime,
+  tictoc,
+  magrittr,
+  janitor,
+  arrow
+)
+
+```
+
+
+## Read Data
+
+Read the json file and flatten it into a simple dataframe
+
+```{r}
+tic()
+
+credit_bureau <- list.files(".",
+                            pattern = "*.json",
+                         full.names = TRUE,
+                         include.dirs = TRUE) %>%
+  map_df(~jsonlite::fromJSON(paste(readLines(.), collapse=""), flatten = TRUE)) 
+
+toc()
+```
+

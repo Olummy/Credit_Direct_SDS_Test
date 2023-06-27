@@ -1,0 +1,63 @@
+---
+title: "Credit Risk Modelling Challenge"
+subtitle: "Credit Direct Senior Data Scientist Assessment"
+author: "Olumide Oyalola"
+format: 
+  html:
+    theme: journal
+    code-copy: true
+    code-fold: show
+    toc: true
+    toc-depth: 3
+    fig-width: 8
+    fig-height: 5
+    toc-title: "Contents"
+    self-contained: true
+editor: visual
+---
+
+# Preamble
+
+## Packages
+
+```{r}
+#| warning: false
+#| message: false
+#| label: load-package
+
+
+if(!require(pacman)) 
+  install.packages("pacman")
+
+pacman::p_load(
+  tidyverse,
+  scales,
+  ggrepel,
+  skimr,
+  tidymodels,
+  stacks,
+  magrittr,
+  tictoc,
+  bonsai,
+  lightgbm,
+  DALEX,
+  DALEXtra
+)
+
+options(scipen = 999, digits = 2)
+tidyverse_conflicts()
+```
+
+
+
+## Read Data File
+
+```{r}
+#| warning: false
+#| message: false
+#| label: read-data
+
+credit_tbl <- read_csv("GermanCredit.csv") %>% 
+  select(-1)
+```
+
