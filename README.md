@@ -5,7 +5,7 @@
 
 * The instruction for the task is contained in the file dubbed _Senior Data Scientist Code Challenge.docx_.
 
-## File Descriptions
+## Files Description
 
 ### Dataset
 

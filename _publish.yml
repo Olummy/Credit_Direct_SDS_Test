@@ -1,0 +1,4 @@
+- source: Model_Presentation.qmd
+  quarto-pub:
+    - id: c702b2f2-6ffd-448d-a61b-10e909861dd7
+      url: 'https://quartopub.com/sites/iamolumide/credit-risk-model-presentation'

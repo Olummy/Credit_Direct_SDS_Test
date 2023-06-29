@@ -1,0 +1,980 @@
+---
+title: "Model Presentation"
+subtitle: "Credit Risk Modelling Challenge"
+author: "Olumide Oyalola"
+date: "`r Sys.Date()`"
+format: 
+  revealjs:
+    self-contained: true
+    touch: true
+    controls: true
+    chalkboard: false
+    transition: slide
+    background-transition: fade
+    theme: [default, custom.scss]
+    footer: "https://iamolumide.quarto.pub/credit-risk-model-presentation/"
+    incremental: true
+    smaller: true
+    scrollable: true
+    code-fold: show
+    code-line-numbers: true
+    code-overflow: scroll
+    code-copy: true
+    code-link: true
+editor: visual
+from: markdown+emoji
+---
+
+```{=html}
+<style type="text/css">
+.reveal .slide-logo {
+  bottom: 0;
+  right: 20px;
+  width: 2.0cm;
+  height: 1.6cm
+}
+</style>
+```
+
+
+# Credit risk modelling; Let's dive in!
+
+:point_down:
+
+## Problem Identification {transition="fade-in slide-out"}
+
+> This is a supervised  binary classification problem.
+
+
+
+
+```{r}
+#| warning: false
+#| message: false
+#| label: load-package
+#| echo: false
+
+
+if(!require(pacman)) 
+  install.packages("pacman")
+
+pacman::p_load(
+  tidyverse,
+  scales,
+  ggrepel,
+  skimr,
+  tidymodels,
+  stacks,
+  magrittr,
+  tictoc,
+  bonsai,
+  lightgbm,
+  DALEX,
+  DALEXtra,
+  patchwork,
+  bestNormalize,
+  embed,
+  learntidymodels,
+  baguette,
+  discrim,
+  DT
+  
+)
+
+options(scipen = 999, digits = 2)
+tidymodels_prefer()
+```
+
+
+
+
+
+```{r}
+#| warning: false
+#| message: false
+#| label: read-data
+#| echo: false
+
+credit_tbl <- read_csv("GermanCredit.csv") %>% 
+  select(-1)
+```
+
+
+
+
+
+```{r}
+#| warning: false
+#| message: false
+#| label: data-wrangling
+#| echo: false
+
+modifiedCredit_tbl <- credit_tbl %>% 
+  separate(residence_history, c("Number", "Type")) %>% 
+  separate(employment_length, c("Length", "LType")) %>% 
+  mutate(
+    Number = as.numeric(Number),
+    Length = as.numeric(Length),
+    residence_history_in_month = case_when(Type == "years" ~ Number * 12,
+                                                Type == "months" ~ Number,
+                                                TRUE ~ Number),
+    employment_length_in_month = case_when(LType == "years" ~ Length * 12,
+                                                LType == "months" ~ Length,
+                                                TRUE ~ Length),
+    default = case_when(default == 0  ~ "yes",
+                        default == 1 ~ "no")) %>% 
+  mutate_if(is.character, as.factor) %>% 
+  select(-Number, -Type, -Length, -LType, -telephone)
+
+```
+
+
+
+# Exploratory Data Analysis
+
+## Historical loan default status
+
+```{r}
+#| warning: false
+#| message: false
+#| label: default-proportion
+#| echo: false
+
+modifiedCredit_tbl %>% 
+  group_by(default) %>% 
+  summarise(Freq = n()) %>% 
+  mutate(Prop = Freq/sum(Freq)) %>% 
+  ggplot(aes(x = 2, y = Prop, fill = reorder(default, -Prop))) +
+  geom_bar(stat ="identity", width = 1, color = "white") +
+  xlim(0.3, 2.5) +
+  coord_polar(theta = "y",  start = 0) +
+  theme_void() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "",
+       y = "",
+       title = "",
+       fill = "Loan defaulted?") +
+  geom_text_repel(aes(label = paste0(round(Prop*100,1),"%")), size = 3, position = position_stack(vjust = 0.7)) +
+    #scale_fill_brewer(palette = "Blues", direction = -1) +
+    theme(legend.position = "right") 
+```
+
+
+## Applicant gender distribution
+
+```{r}
+#| warning: false
+#| message: false
+#| label: gender-distribution
+#| echo: false
+
+
+modifiedCredit_tbl %>% 
+  group_by(gender) %>% 
+  summarise(Freq = n()) %>% 
+  mutate(Prop = Freq/sum(Freq)) %>% 
+  ggplot(aes(x = 2, y = Prop, fill = reorder(gender, -Prop))) +
+  geom_bar(stat ="identity", width = 1, color = "white") +
+  xlim(0.3, 2.5) +
+  coord_polar(theta = "y",  start = 0) +
+  theme_void() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "",
+       y = "",
+       title = "",
+       fill = "") +
+  geom_text_repel(aes(label = paste0(round(Prop*100,1),"%")), size = 3, position = position_stack(vjust = 0.7)) +
+    #scale_fill_brewer(palette = "Blues", direction = -1) +
+    theme(legend.position = "right")
+```
+
+
+## Applicant job category
+
+
+```{r}
+#| warning: false
+#| message: false
+#| label: Applicant-job-category
+#| echo: false
+
+
+modifiedCredit_tbl %>% 
+  group_by(job) %>% 
+  summarise(Freq = n()) %>% 
+  mutate(Prop = Freq/sum(Freq)) %>% 
+  ggplot(aes(x = 2, y = Prop, fill = reorder(job, -Prop))) +
+  geom_bar(stat ="identity", width = 1, color = "white") +
+  xlim(0.3, 2.5) +
+  coord_polar(theta = "y",  start = 0) +
+  theme_void() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "",
+       y = "",
+       title = "",
+       fill = "") +
+  geom_text_repel(aes(label = paste0(round(Prop*100,1),"%")), size = 3, position = position_stack(vjust = 0.7)) +
+    #scale_fill_brewer(palette = "Blues", direction = -1) +
+    theme(legend.position = "right")
+```
+
+
+## 
+
+```{r}
+#| warning: false
+#| message: false
+#| label: residence and employment distribution
+#| fig-width: 12
+#| fig-height: 5
+#| echo: false
+
+
+residence <- 
+  modifiedCredit_tbl %>% 
+  ggplot(aes(residence_history_in_month)) +
+  geom_histogram(fill = "steelblue", color = "white", na.rm = TRUE) +
+  labs(x = "Residence Duration",
+       title = "Distribution of residence duration in month")+
+  theme(axis.title.x = element_text(size = 9))+
+  theme(axis.title.y = element_text(size = 9))
+
+
+employment <- 
+  modifiedCredit_tbl %>% 
+  ggplot(aes(employment_length_in_month)) +
+  geom_histogram(fill = "tomato", color = "white", na.rm = TRUE) +
+  labs(x = "Length of employment",
+       title = "Distribution of employment length in month")+
+  theme(axis.title.x = element_text(size = 9))+
+  theme(axis.title.y = element_text(size = 9))
+
+
+age <- 
+  modifiedCredit_tbl %>% 
+  ggplot(aes(age)) +
+  geom_histogram(fill = "coral", color = "white", na.rm = TRUE) +
+  labs(x = "Age",
+       title = "Applicant age distribution")+
+  theme(axis.title.x = element_text(size = 9))+
+  theme(axis.title.y = element_text(size = 9))
+
+
+amount <- 
+  modifiedCredit_tbl %>% 
+  ggplot(aes(amount)) +
+  geom_histogram(fill = "darkblue", color = "white", na.rm = TRUE) +
+  scale_x_continuous(labels = scales::comma) +
+  labs(x = "Amount",
+       title = "DIstribution of loan amount") +
+  theme(axis.title.x = element_text(size = 9))+
+  theme(axis.title.y = element_text(size = 9))
+
+(residence + employment)/(age + amount)
+```
+
+
+## Proportion of credit history
+
+```{r}
+#| warning: false
+#| message: false
+#| label: distribution-of-credit-history
+#| echo: false
+
+
+modifiedCredit_tbl %>% 
+  group_by(credit_history) %>% 
+  summarise(Freq = n()) %>% 
+  mutate(Prop = Freq/sum(Freq)) %>% 
+  ggplot(aes(x = 2, y = Prop, fill = reorder(credit_history, -Prop))) +
+  geom_bar(stat ="identity", width = 1, color = "white") +
+  xlim(0.3, 2.5) +
+  coord_polar(theta = "y",  start = 0) +
+  theme_void() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "",
+       y = "",
+       title = "",
+       fill = "") +
+  geom_text_repel(aes(label = paste0(round(Prop*100,1),"%")), size = 3, position = position_stack(vjust = 0.7)) +
+    #scale_fill_brewer(palette = "Blues", direction = -1) +
+    theme(legend.position = "right")
+```
+
+
+## Loan purpose
+
+```{r}
+#| warning: false
+#| message: false
+#| label: applicant-purpose
+#| echo: false
+
+
+modifiedCredit_tbl %>% 
+  filter(!is.na(purpose)) %>% 
+  group_by(purpose) %>% 
+  summarise(Freq = n()) %>% 
+  mutate(Prop = Freq/sum(Freq)) %>% 
+  ggplot(aes(x = reorder(purpose,-Prop), y = Prop, fill = reorder(purpose, -Prop))) +
+  geom_bar(stat ="identity", width = 1, color = "white", show.legend = FALSE) +
+  coord_flip() +
+  #theme_void() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "",
+       y = "",
+       title = "",
+       fill = "") +
+  geom_text_repel(aes(label = paste0(round(Prop*100,1),"%")), size = 3,
+                  position = position_stack(vjust = 0.9)) +
+    #scale_fill_brewer(palette = "Blues", direction = -1) +
+    theme(legend.position = "right")
+```
+
+
+
+## Property type
+
+
+```{r}
+#| warning: false
+#| message: false
+#| label: distribution-of-property
+#| echo: false
+
+
+modifiedCredit_tbl %>% 
+  group_by(property) %>% 
+  summarise(Freq = n()) %>% 
+  mutate(Prop = Freq/sum(Freq)) %>% 
+  ggplot(aes(x = 2, y = Prop, fill = reorder(property, -Prop))) +
+  geom_bar(stat ="identity", width = 1, color = "white") +
+  xlim(0.3, 2.5) +
+  coord_polar(theta = "y",  start = 0) +
+  theme_void() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "",
+       y = "",
+       title = "",
+       fill = "") +
+  geom_text_repel(aes(label = paste0(round(Prop*100,1),"%")), size = 3, position = position_stack(vjust = 0.7)) +
+    #scale_fill_brewer(palette = "Blues", direction = -1) +
+    theme(legend.position = "right")
+```
+
+
+## Housing Type
+
+
+```{r}
+#| warning: false
+#| message: false
+#| label: housing proportion
+#| echo: false
+
+
+modifiedCredit_tbl %>% 
+  group_by(housing) %>% 
+  summarise(Freq = n()) %>% 
+  mutate(Prop = Freq/sum(Freq)) %>% 
+  ggplot(aes(x = 2, y = Prop, fill = reorder(housing, -Prop))) +
+  geom_bar(stat ="identity", width = 1, color = "white") +
+  xlim(0.3, 2.5) +
+  coord_polar(theta = "y",  start = 0) +
+  theme_void() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "",
+       y = "",
+       title = "",
+       fill = "") +
+  geom_text_repel(aes(label = paste0(round(Prop*100,1),"%")), size = 3, position = position_stack(vjust = 0.7)) +
+    #scale_fill_brewer(palette = "Blues", direction = -1) +
+    theme(legend.position = "right")
+```
+
+
+## Applicant Personal Status
+
+```{r}
+#| warning: false
+#| message: false
+#| label: applicant-personal-status
+#| echo: false
+
+
+modifiedCredit_tbl %>% 
+  filter(!is.na(personal_status)) %>% 
+  group_by(personal_status) %>% 
+  summarise(Freq = n()) %>% 
+  mutate(Prop = Freq/sum(Freq)) %>% 
+  ggplot(aes(x = 2, y = Prop, fill = reorder(personal_status, -Prop))) +
+  geom_bar(stat ="identity", width = 1, color = "white") +
+  xlim(0.3, 2.5) +
+  coord_polar(theta = "y",  start = 0) +
+  theme_void() +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "",
+       y = "",
+       title = "",
+       fill = "") +
+  geom_text_repel(aes(label = paste0(round(Prop*100,1),"%")), size = 3, position = position_stack(vjust = 0.7)) +
+    #scale_fill_brewer(palette = "Blues", direction = -1) +
+    theme(legend.position = "right")
+```
+
+
+
+
+# Modeling
+
+
+## Data Partitioning
+
+For the analyses, we start by holding back a testing set with `initial_split()`. The remaining data are split into `training` and `validation` sets:
+
+```{r}
+#| label: data-split
+#| warning: false
+#| message: false
+#| echo: true
+
+set.seed(1601)
+
+credit_split <- initial_split(modifiedCredit_tbl,
+                            prop = 0.75,
+                            strata = default)
+crd_train <- credit_split %>% 
+  training()
+crd_test <- credit_split %>% 
+  testing()
+
+set.seed(1602)
+
+crd_val <- validation_split(crd_train, strata = default, prop = 4/5)
+
+crd_val$splits[[1]]
+```
+
+
+
+
+## Recipes in the wild
+
+```{r}
+#| label: recipe-wkflw
+#| warning: false
+#| message: false
+#| echo: true
+
+
+crd_rec <- recipe(default ~ ., 
+                  data = analysis(crd_val$splits[[1]])) %>% 
+
+# Now add preprocessing steps to the recipe:
+
+  step_impute_knn(all_predictors()) %>%
+  step_zv(all_numeric_predictors()) %>% 
+  step_orderNorm(all_numeric_predictors()) %>% 
+  step_normalize(all_numeric_predictors()) %>%
+  step_spatialsign(all_numeric_predictors()) %>% 
+  step_dummy(all_nominal_predictors()) %>%
+  step_other(all_nominal_predictors()) %>% 
+  step_filter_missing(all_nominal_predictors(), threshold = 0) 
+
+
+crd_rec_trained <- 
+  crd_rec %>% 
+  prep(log_changes = TRUE)
+ 
+crd_rec_trained
+
+```
+
+
+
+
+
+
+<!-- ### Baking the Recipe -->
+
+```{r}
+#| label: baking
+#| warning: false
+#| message: false
+#| echo: false
+
+crd_validation <- crd_val$splits %>% pluck(1) %>% assessment()
+crd_val_processed <- bake(crd_rec_trained, new_data = crd_validation)
+```
+
+
+
+***
+
+> show the histograms of the `amount` predictor before and after the recipe was prepared:
+
+```{r}
+#| label: compare-original-vs-processed-data
+#| warning: false
+#| message: false
+#| fig-width: 10
+#| echo: false
+
+p1 <- 
+  crd_validation %>% 
+  ggplot(aes(x = amount)) +
+  geom_histogram(bins = 30, color = "white", fill = "blue", alpha = 1/3) +
+  ggtitle("Original validation set data")
+
+
+p2 <- 
+  crd_val_processed %>% 
+  ggplot(aes(x = amount)) +
+  geom_histogram(bins = 30, color = "white", fill = "red", alpha = 1/3) +
+  ggtitle("Processed validation set data")
+
+p1 + p2
+
+```
+
+
+## Feature Extraction
+
+
+* Principal Component Analysis
+* Partial Least Squares
+* Independent Component Analysis
+* Uniform Manifold Approximation and Projection
+
+```{r}
+#| echo: false
+
+plot_validation_results <- function(recipe, dat = assessment(crd_val$splits[[1]])){
+  set.seed(1)
+  plot_data <- 
+    recipe %>% 
+    prep() %>% 
+    bake(new_data = dat, all_predictors(), all_outcomes()) %>% 
+    sample_n(120)
+  
+  nms <- names(plot_data)
+  x_name <- sym(nms[1])
+  y_name <- sym(nms[2])
+  
+  plot_data %>% 
+    ggplot(aes(x = !!x_name, y = !!y_name, col = default,
+               fill = default, pch = default)) +
+    geom_point(alpha =0.9) +
+    scale_shape_manual(values = 1:2) +
+    coord_obs_pred() +
+    theme_bw()
+}
+```
+
+
+## Principal Component Analysis
+
+```{r}
+#| warning: false
+#| message: false
+#| label: pca-visuals
+#| fig-width: 10
+#| echo: false
+
+
+pca1 <- crd_rec_trained %>% 
+  step_pca(all_numeric_predictors(), num_comp = 4) %>% 
+  plot_validation_results() +
+  ggtitle("Principal Component Analysis")
+
+# plot the pcas with loadings
+
+pca2 <- crd_rec_trained %>% 
+  step_pca(all_numeric_predictors(), num_comp = 4) %>% 
+  prep() %>% 
+  plot_top_loadings(component_number <= 4, n = 5) +
+  scale_fill_brewer(palette = "Paired") +
+  ggtitle("Principal Component Analysis with Loadings")
+
+pca1 + pca2
+```
+
+
+## Partial Least Squares
+
+```{r}
+#| warning: false
+#| message: false
+#| label: partial-least-squares
+#| fig-width: 10
+#| echo: false
+
+
+pls1 <- crd_rec_trained %>% 
+  step_pls(all_numeric_predictors(), outcome = "default", num_comp = 4) %>% 
+  plot_validation_results() +
+  ggtitle("Partial Least Squares")
+
+# plot the pls with loadings
+
+pls2 <- crd_rec_trained %>% 
+  step_pls(all_numeric_predictors(), outcome = "default", num_comp = 4) %>% 
+  prep() %>% 
+  plot_top_loadings(component_number <= 4, n = 5, type = "pls") +
+  scale_fill_brewer(palette = "Paired") +
+  ggtitle("Partial Least Squares with Loadings")
+
+pls1 + pls2
+```
+
+
+## Independent Component Analysis
+
+
+```{r}
+#| warning: false
+#| message: false
+#| label: ica
+#| fig-width: 10
+#| echo: false
+
+crd_rec_trained %>% 
+  step_ica(all_numeric_predictors(), num_comp = 4) %>% 
+  plot_validation_results() +
+  ggtitle("Independent Component Analysis")
+```
+
+
+## Uniform Manifold Approximation and Projection
+
+> UMAP is similar to the popular `t-SNE` method for nonlinear dimension reduction
+
+```{r}
+#| warning: false
+#| message: false
+#| label: umap
+#| fig-width: 10
+#| echo: false
+
+umap1 <- crd_rec_trained %>% 
+  step_umap(all_numeric_predictors(), num_comp = 4) %>% 
+  plot_validation_results() +
+  ggtitle("UMAP")
+
+umap2 <- crd_rec_trained %>% 
+  step_umap(all_numeric_predictors(), num_comp = 4, outcome = "default") %>% 
+  plot_validation_results() +
+  ggtitle("UMAP (supervised)")
+
+umap1 + umap2
+```
+
+
+
+## Model specification
+
+Both the PLS and UMAP methods are worth investigating in conjunction with different models.
+
+```{r}
+#| warning: false
+#| message: false
+#| label: model setup
+#| echo: true
+
+
+# single-layer neural network
+
+mlp_spec <- 
+  mlp(hidden_units = tune(),
+      penalty = tune(),
+      epochs = tune()) %>% 
+  set_engine("nnet") %>% 
+  set_mode("classification")
+
+# bagged trees
+
+bagging_spec <- 
+  bag_tree(cost_complexity = tune(),
+           tree_depth = tune(), 
+           min_n = tune(), 
+           class_cost = tune()) %>% 
+  set_engine("rpart") %>% 
+  set_mode("classification")
+```
+
+
+<!-- ### Apply Feature Engineering Procedures to the Recipe -->
+
+```{r}
+#| warning: false
+#| message: false
+#| label: apply-feature-engineering
+#| echo: false
+
+pls_rec <- 
+  crd_rec %>% 
+  step_pls(all_numeric_predictors(), outcome = "default", num_comp = tune())
+
+umap_rec <- 
+  crd_rec %>% 
+  step_umap(
+    all_numeric_predictors(),
+    outcome = "default",
+    num_comp = tune(),
+    neighbors = tune(),
+    min_dist = tune()
+  )
+```
+
+
+
+<!-- ## Resampling -->
+
+```{r}
+#| label: resampling
+#| warning: false
+#| message: false
+#| echo: false
+
+cltr <- control_grid(parallel_over = "everything")
+
+crd_res <- 
+  workflow_set(
+    preproc = list(basic = default ~ ., pls = pls_rec, umap = umap_rec),
+    models = list(bag = bagging_spec, 
+                  mlp = mlp_spec)
+  ) %>% 
+  workflow_map(
+    verbose = TRUE,
+    seed = 1603,
+    resamples = crd_val,
+    grid = 3,
+    metrics = metric_set(roc_auc),
+    control = cltr
+  )
+
+```
+
+
+## Model ranking
+
+
+```{r}
+#| label: model-ranking
+#| warning: false
+#| message: false
+#| echo: true
+
+
+rankings <- 
+  rank_results(crd_res, select_best = TRUE) %>% 
+  mutate(method = map_chr(wflow_id, ~str_split(.x, "_", simplify = TRUE)[1]))
+
+tidymodels_prefer()
+
+rankings %>% filter(length(rank) > 0) %>% dplyr::select(rank, mean, model, method) %>% datatable()
+```
+
+
+## Final model
+
+```{r}
+#| label: final-model
+#| warning: false
+#| message: false
+#| error: false
+#| echo: true
+
+
+best_res <- 
+  crd_res %>% 
+  extract_workflow("pls_mlp") %>% 
+  finalize_workflow(
+    crd_res %>% 
+      extract_workflow_set_result("pls_mlp") %>% 
+      select_best(metric = "roc_auc")
+  ) %>% 
+  last_fit(split = credit_split, metrics = metric_set(roc_auc))
+
+best_wflow_fit <- best_res$.workflow[[1]]
+
+extract_fit_parsnip(best_wflow_fit)
+```
+
+
+
+## What's the model performance on test data?
+
+```{r}
+#| label: performance-on-test-data
+#| warning: false
+#| message: false
+#| echo: true
+
+
+collect_metrics(best_res)
+```
+
+
+## ROC Curve and AUC Estimate
+
+```{r}
+#| label: roc-curve-auc-estimate
+#| warning: false
+#| message: false
+#| comment: ""
+#| echo: false
+
+
+prob_preds <- best_wflow_fit %>% 
+  fit(crd_train) %>% 
+  predict(crd_test, type = "prob") %>% 
+  bind_cols(crd_test)
+
+
+threshold_df <- prob_preds %>% 
+  roc_curve(truth = default, estimate = `.pred_no`)
+threshold_df %>% 
+  autoplot()
+
+
+roc_auc(prob_preds, truth = default, estimate = `.pred_no`) %>% datatable()
+```
+
+
+
+
+## What about the confusion matrix?
+
+```{r}
+#| label: confusion-matrix
+#| warning: false
+#| message: false
+#| comment: ""
+#| echo: false
+
+
+mlp <- 
+  best_wflow_fit %>% 
+  fit(crd_train) %>% 
+  predict(crd_test) %>% 
+  bind_cols(crd_test)
+
+
+mlp %>% 
+  conf_mat(truth = default, estimate = .pred_class) %>% 
+  summary() %>% datatable()
+```
+
+
+## What about the confusion matrix plot?
+
+```{r}
+#| label: confusion-matrix-plot
+#| warning: false
+#| message: false
+#| comment: ""
+#| echo: false
+
+mlp %>% 
+  conf_mat(truth = default, estimate = .pred_class) %>% 
+  autoplot(type = "heatmap")
+```
+
+
+
+# Variable Importance
+
+Below is a plot of the variable importance. The importance of the features in the final model is represented visually.
+
+```{r}
+#| label: explainer
+#| message: false
+#| warning: false
+#| eval: true
+#| echo: false
+
+
+explain_stack <- DALEXtra::explain_tidymodels(best_wflow_fit, 
+                                    data = crd_test %>% select(-default),
+                                    y = as.numeric(crd_test$default),
+                                    verbose = FALSE, 
+                                    label ="model-name-here") 
+```
+
+
+
+
+```{r}
+#| label: ggplot_imp_function
+#| warning: false
+#| message: false
+#| eval: true
+#| echo: false
+
+ggplot_imp <- function(...) {
+  obj <- list(...)
+  metric_name <- attr(obj[[1]], "loss_name")
+  metric_lab <- paste(metric_name, 
+                      "after permutations\n(higher indicates more important)")
+  
+  full_vip <- bind_rows(obj) %>%
+    filter(variable != "_baseline_")
+  
+  perm_vals <- full_vip %>% 
+    filter(variable == "_full_model_") %>% 
+    group_by(label) %>% 
+    summarise(dropout_loss = mean(dropout_loss))
+  
+  p <- full_vip %>%
+    filter(variable != "_full_model_") %>% 
+    mutate(variable = fct_reorder(variable, dropout_loss)) %>%
+    ggplot(aes(dropout_loss, variable)) 
+  if(length(obj) > 1) {
+    p <- p + 
+      facet_wrap(vars(label)) +
+      geom_vline(data = perm_vals, aes(xintercept = dropout_loss, color = label),
+                 size = 1.4, lty = 2, alpha = 0.7) +
+      geom_boxplot(aes(color = label, fill = label), alpha = 0.2)
+  } else {
+    p <- p + 
+      geom_vline(data = perm_vals, aes(xintercept = dropout_loss),
+                 linewidth = 1.4, lty = 2, alpha = 0.7) +
+      geom_boxplot(fill = "#91CBD765", alpha = 0.4)
+    
+  }
+  p +
+    theme(legend.position = "none") +
+    labs(x = metric_lab, 
+         y = NULL,  fill = NULL,  color = NULL)
+}
+```
+
+
+## Relative variable importance
+
+- 
+
+```{r}
+#| fig-cap: Global explainer for the classification ML tidymodel on the credit data
+#| fig-width: 9
+#| fig-height: 7
+#| label: var-imp-plot
+#| message: false
+#| warning: false
+#| eval: true
+#| echo: false
+
+
+set.seed(1234)
+  explain_stack %>% 
+  model_parts() %>% 
+  ggplot_imp()
+```
+
+
+
+# What's the take away here?
+
+> From the relative variable importance plot, `checking_balance`, `months_loan_duration` and `credit_history` are the top 3 important feature in the final model whereas the `amount` feature is the least important among the selected features in the final model.
