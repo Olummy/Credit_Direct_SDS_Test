@@ -51,6 +51,11 @@ pacman::p_load(
 Read the json file and flatten it into a simple dataframe
 
 ```{r}
+#| warning: false
+#| message: false
+#| label: load-data
+
+
 tic()
 
 credit_bureau <- list.files(".",
@@ -60,5 +65,32 @@ credit_bureau <- list.files(".",
   map_df(~jsonlite::fromJSON(paste(readLines(.), collapse=""), flatten = TRUE)) 
 
 toc()
+
 ```
+
+# Data Wrangling
+
+## Unnesting the lists within the dataframe
+
+
+```{r}
+#| warning: false
+#| message: false
+#| label: unnest-dataframe
+
+
+normalized_credit_df <- 
+  credit_bureau %>% 
+  unnest(data.consumerfullcredit.telephonehistory, names_repair = "universal") %>% 
+  unnest(data.consumerfullcredit.employmenthistory, names_repair = "universal") %>% 
+  unnest(data.consumerfullcredit.enquiryhistorytop, names_repair = "universal") %>% 
+  unnest(data.consumerfullcredit.creditagreementsummary, names_repair = "universal") %>% 
+  unnest(data.consumerfullcredit.accountmonthlypaymenthistory, names_repair = "universal") %>% 
+  unnest(data.consumerfullcredit.identificationhistory, names_repair = "universal") %>% 
+  unnest(data.consumerfullcredit.personaldetailssummary.residentialaddress4, names_repair = "universal") %>% 
+  unnest(data.consumerfullcredit.personaldetailssummary.residentialaddress4, names_repair = "universal")
+
+```
+
+
 
