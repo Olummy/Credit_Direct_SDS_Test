@@ -66,7 +66,6 @@ credit_tbl <- read_csv("GermanCredit.csv") %>%
   select(-1)
 ```
 
-
 ## Data Wrangling
 
 ```{r}
@@ -93,7 +92,6 @@ modifiedCredit_tbl <- credit_tbl %>%
 
 ```
 
-
 ### Quick Data Summary
 
 ```{r}
@@ -107,10 +105,7 @@ glimpse(modifiedCredit_tbl)
 skim(modifiedCredit_tbl)
 ```
 
-
-
 # Exploratory Data Analysis
-
 
 ```{r}
 #| warning: false
@@ -137,8 +132,6 @@ modifiedCredit_tbl %>%
     theme(legend.position = "right")
 ```
 
-
-
 ```{r}
 #| warning: false
 #| message: false
@@ -164,8 +157,6 @@ modifiedCredit_tbl %>%
     theme(legend.position = "right")
 ```
 
-
-
 ```{r}
 #| warning: false
 #| message: false
@@ -190,8 +181,6 @@ modifiedCredit_tbl %>%
     #scale_fill_brewer(palette = "Blues", direction = -1) +
     theme(legend.position = "right")
 ```
-
-
 
 ```{r}
 #| warning: false
@@ -244,8 +233,6 @@ amount <-
 (residence + employment)/(age + amount)
 ```
 
-
-
 ```{r}
 #| warning: false
 #| message: false
@@ -270,7 +257,6 @@ modifiedCredit_tbl %>%
     #scale_fill_brewer(palette = "Blues", direction = -1) +
     theme(legend.position = "right")
 ```
-
 
 ```{r}
 #| warning: false
@@ -298,7 +284,6 @@ modifiedCredit_tbl %>%
     theme(legend.position = "right")
 ```
 
-
 ```{r}
 #| warning: false
 #| message: false
@@ -323,8 +308,6 @@ modifiedCredit_tbl %>%
     #scale_fill_brewer(palette = "Blues", direction = -1) +
     theme(legend.position = "right")
 ```
-
-
 
 ```{r}
 #| warning: false
@@ -351,7 +334,6 @@ modifiedCredit_tbl %>%
     theme(legend.position = "right")
 ```
 
-
 ```{r}
 #| warning: false
 #| message: false
@@ -377,8 +359,6 @@ modifiedCredit_tbl %>%
     #scale_fill_brewer(palette = "Blues", direction = -1) +
     theme(legend.position = "right")
 ```
-
-
 
 # Modeling
 
@@ -408,9 +388,7 @@ crd_val <- validation_split(crd_train, strata = default, prop = 4/5)
 crd_val$splits[[1]]
 ```
 
-
-
-***
+------------------------------------------------------------------------
 
 ## Recipes in the wild
 
@@ -443,11 +421,6 @@ crd_rec_trained
 
 ```
 
-
-
-
-
-
 ### Baking the Recipe
 
 ```{r}
@@ -459,9 +432,7 @@ crd_validation <- crd_val$splits %>% pluck(1) %>% assessment()
 crd_val_processed <- bake(crd_rec_trained, new_data = crd_validation)
 ```
 
-
-
-***
+------------------------------------------------------------------------
 
 > show the histograms of the `amount` predictor before and after the recipe was prepared:
 
@@ -488,7 +459,6 @@ p1 + p2
 
 ```
 
-
 ## Feature Extraction
 
 ```{r}
@@ -513,7 +483,6 @@ plot_validation_results <- function(recipe, dat = assessment(crd_val$splits[[1]]
     theme_bw()
 }
 ```
-
 
 ### Principal Component Analysis
 
@@ -577,7 +546,6 @@ crd_rec_trained %>%
   ggtitle("Independent Component Analysis")
 ```
 
-
 ### Uniform Manifold Approximation and Projection
 
 > UMAP is similar to the popular `t-SNE` method for nonlinear dimension reduction
@@ -629,7 +597,6 @@ bagging_spec <-
   set_mode("classification")
 ```
 
-
 ### Apply Feature Engineering Procedures to the Recipe
 
 ```{r}
@@ -651,8 +618,6 @@ umap_rec <-
     min_dist = tune()
   )
 ```
-
-
 
 ## Resampling
 
@@ -680,9 +645,7 @@ crd_res <-
 
 ```
 
-
 ## Model Ranking
-
 
 ```{r}
 #| label: model-ranking
@@ -723,8 +686,6 @@ best_wflow_fit <- best_res$.workflow[[1]]
 extract_fit_parsnip(best_wflow_fit)
 ```
 
-
-
 ## Model performance on test data
 
 ```{r}
@@ -760,9 +721,6 @@ threshold_df %>%
 roc_auc(prob_preds, truth = default, estimate = `.pred_no`)
 ```
 
-
-
-
 ### Confusion Matrix
 
 ```{r}
@@ -788,11 +746,6 @@ mlp %>%
   autoplot(type = "heatmap")
 ```
 
-
-
-
-
-
 # Variable Importance
 
 Below is a plot of the variable importance. The importance of the features in the final model is represented visually.
@@ -810,9 +763,6 @@ explain_stack <- DALEXtra::explain_tidymodels(best_wflow_fit,
                                     verbose = FALSE, 
                                     label ="model-name-here") 
 ```
-
-
-
 
 ```{r}
 #| label: ggplot_imp_function
@@ -858,8 +808,6 @@ ggplot_imp <- function(...) {
 }
 ```
 
-
-
 ```{r}
 #| fig-cap: Global explainer for the classification ML tidymodel on the credit data
 #| fig-width: 9
@@ -876,7 +824,7 @@ set.seed(1234)
   ggplot_imp()
 ```
 
-From the variable importance plot above, `checking_balance` is the most important feature in the final model whereas the `amount` feature is the least important among the selected features in the final model.
+From the variable importance plot above, `checking_balance` is the least important feature in the final model whereas the `job`, `amount`, and `existing_credits` features are the top 3 most important among the selected features in the final model.
 
 # Session Information
 

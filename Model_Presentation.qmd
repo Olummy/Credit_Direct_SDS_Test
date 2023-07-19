@@ -35,18 +35,13 @@ from: markdown+emoji
 }
 </style>
 ```
-
-
 # Credit risk modelling; Let's dive in!
 
 :point_down:
 
 ## Problem Identification {transition="fade-in slide-out"}
 
-> This is a supervised  binary classification problem.
-
-
-
+> This is a supervised binary classification problem.
 
 ```{r}
 #| warning: false
@@ -85,10 +80,6 @@ options(scipen = 999, digits = 2)
 tidymodels_prefer()
 ```
 
-
-
-
-
 ```{r}
 #| warning: false
 #| message: false
@@ -98,10 +89,6 @@ tidymodels_prefer()
 credit_tbl <- read_csv("GermanCredit.csv") %>% 
   select(-1)
 ```
-
-
-
-
 
 ```{r}
 #| warning: false
@@ -127,8 +114,6 @@ modifiedCredit_tbl <- credit_tbl %>%
   select(-Number, -Type, -Length, -LType, -telephone)
 
 ```
-
-
 
 # Exploratory Data Analysis
 
@@ -159,7 +144,6 @@ modifiedCredit_tbl %>%
     theme(legend.position = "right") 
 ```
 
-
 ## Applicant gender distribution
 
 ```{r}
@@ -188,9 +172,7 @@ modifiedCredit_tbl %>%
     theme(legend.position = "right")
 ```
 
-
 ## Applicant job category
-
 
 ```{r}
 #| warning: false
@@ -217,7 +199,6 @@ modifiedCredit_tbl %>%
     #scale_fill_brewer(palette = "Blues", direction = -1) +
     theme(legend.position = "right")
 ```
-
 
 ## 
 
@@ -273,7 +254,6 @@ amount <-
 (residence + employment)/(age + amount)
 ```
 
-
 ## Proportion of credit history
 
 ```{r}
@@ -301,7 +281,6 @@ modifiedCredit_tbl %>%
     #scale_fill_brewer(palette = "Blues", direction = -1) +
     theme(legend.position = "right")
 ```
-
 
 ## Loan purpose
 
@@ -332,10 +311,7 @@ modifiedCredit_tbl %>%
     theme(legend.position = "right")
 ```
 
-
-
 ## Property type
-
 
 ```{r}
 #| warning: false
@@ -363,9 +339,7 @@ modifiedCredit_tbl %>%
     theme(legend.position = "right")
 ```
 
-
 ## Housing Type
-
 
 ```{r}
 #| warning: false
@@ -392,7 +366,6 @@ modifiedCredit_tbl %>%
     #scale_fill_brewer(palette = "Blues", direction = -1) +
     theme(legend.position = "right")
 ```
-
 
 ## Applicant Personal Status
 
@@ -423,11 +396,7 @@ modifiedCredit_tbl %>%
     theme(legend.position = "right")
 ```
 
-
-
-
 # Modeling
-
 
 ## Data Partitioning
 
@@ -455,9 +424,6 @@ crd_val <- validation_split(crd_train, strata = default, prop = 4/5)
 
 crd_val$splits[[1]]
 ```
-
-
-
 
 ## Recipes in the wild
 
@@ -491,11 +457,6 @@ crd_rec_trained
 
 ```
 
-
-
-
-
-
 <!-- ### Baking the Recipe -->
 
 ```{r}
@@ -508,9 +469,7 @@ crd_validation <- crd_val$splits %>% pluck(1) %>% assessment()
 crd_val_processed <- bake(crd_rec_trained, new_data = crd_validation)
 ```
 
-
-
-***
+------------------------------------------------------------------------
 
 > show the histograms of the `amount` predictor before and after the recipe was prepared:
 
@@ -538,14 +497,12 @@ p1 + p2
 
 ```
 
-
 ## Feature Extraction
 
-
-* Principal Component Analysis
-* Partial Least Squares
-* Independent Component Analysis
-* Uniform Manifold Approximation and Projection
+-   Principal Component Analysis
+-   Partial Least Squares
+-   Independent Component Analysis
+-   Uniform Manifold Approximation and Projection
 
 ```{r}
 #| echo: false
@@ -571,7 +528,6 @@ plot_validation_results <- function(recipe, dat = assessment(crd_val$splits[[1]]
     theme_bw()
 }
 ```
-
 
 ## Principal Component Analysis
 
@@ -600,7 +556,6 @@ pca2 <- crd_rec_trained %>%
 pca1 + pca2
 ```
 
-
 ## Partial Least Squares
 
 ```{r}
@@ -628,9 +583,7 @@ pls2 <- crd_rec_trained %>%
 pls1 + pls2
 ```
 
-
 ## Independent Component Analysis
-
 
 ```{r}
 #| warning: false
@@ -644,7 +597,6 @@ crd_rec_trained %>%
   plot_validation_results() +
   ggtitle("Independent Component Analysis")
 ```
-
 
 ## Uniform Manifold Approximation and Projection
 
@@ -669,8 +621,6 @@ umap2 <- crd_rec_trained %>%
 
 umap1 + umap2
 ```
-
-
 
 ## Model specification
 
@@ -703,7 +653,6 @@ bagging_spec <-
   set_mode("classification")
 ```
 
-
 <!-- ### Apply Feature Engineering Procedures to the Recipe -->
 
 ```{r}
@@ -726,8 +675,6 @@ umap_rec <-
     min_dist = tune()
   )
 ```
-
-
 
 <!-- ## Resampling -->
 
@@ -756,9 +703,7 @@ crd_res <-
 
 ```
 
-
 ## Model ranking
-
 
 ```{r}
 #| label: model-ranking
@@ -775,7 +720,6 @@ tidymodels_prefer()
 
 rankings %>% filter(length(rank) > 0) %>% dplyr::select(rank, mean, model, method) %>% datatable()
 ```
-
 
 ## Final model
 
@@ -802,8 +746,6 @@ best_wflow_fit <- best_res$.workflow[[1]]
 extract_fit_parsnip(best_wflow_fit)
 ```
 
-
-
 ## What's the model performance on test data?
 
 ```{r}
@@ -815,7 +757,6 @@ extract_fit_parsnip(best_wflow_fit)
 
 collect_metrics(best_res)
 ```
-
 
 ## ROC Curve and AUC Estimate
 
@@ -842,9 +783,6 @@ threshold_df %>%
 roc_auc(prob_preds, truth = default, estimate = `.pred_no`) %>% datatable()
 ```
 
-
-
-
 ## What about the confusion matrix?
 
 ```{r}
@@ -867,7 +805,6 @@ mlp %>%
   summary() %>% datatable()
 ```
 
-
 ## What about the confusion matrix plot?
 
 ```{r}
@@ -881,8 +818,6 @@ mlp %>%
   conf_mat(truth = default, estimate = .pred_class) %>% 
   autoplot(type = "heatmap")
 ```
-
-
 
 # Variable Importance
 
@@ -902,9 +837,6 @@ explain_stack <- DALEXtra::explain_tidymodels(best_wflow_fit,
                                     verbose = FALSE, 
                                     label ="model-name-here") 
 ```
-
-
-
 
 ```{r}
 #| label: ggplot_imp_function
@@ -951,10 +883,9 @@ ggplot_imp <- function(...) {
 }
 ```
 
-
 ## Relative variable importance
 
-- 
+-   
 
 ```{r}
 #| fig-cap: Global explainer for the classification ML tidymodel on the credit data
@@ -973,8 +904,6 @@ set.seed(1234)
   ggplot_imp()
 ```
 
-
-
 # What's the take away here?
 
-> From the relative variable importance plot, `checking_balance`, `months_loan_duration` and `credit_history` are the top 3 important feature in the final model whereas the `amount` feature is the least important among the selected features in the final model.
+> From the variable importance plot, `checking_balance` is the least important feature in the final model whereas the `job`, `amount`, and `existing_credits` features are the top 3 most important among the selected features in the final model.
